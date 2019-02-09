@@ -364,5 +364,7 @@ outputs = filter(None, map(getOutput, leaves))
 output = SEPARATOR.join(outputs)
 if output:
     output = "<span color='{}'>{}</span>".format(INFO_TEXT_COLOR, output)
+else:
+    output = "<span color='{}'>{}</span>".format('/dev/', gray)
 print(output)
 print(output)
