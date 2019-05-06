@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+LABEL="${LABEL:-}"
+SEPARATOR="${SEPARATOR:- - }"
+PREV_TRACK_TEXT="${PREV_TRACK_TEXT:-« previous track «}"
+NEXT_TRACK_TEXT="${NEXT_TRACK_TEXT:-» next track »}"
+PLAY_TEXT="${PLAY_TEXT:- Play}"
+PAUSE_TEXT="${PAUSE_TEXT:- Pause}"
+SHOW_PREV_NEXT_BUTTONS="${SHOW_PREV_NEXT_BUTTONS:-123}"
+ROFI_CONFIG_FILE="${ROFI_CONFIG_FILE:-/dev/null}"
+FONT="${FONT:-Monospace 10}"
+
+next_track() {
+  playerctl --player=$BLOCK_INSTANCE next
+}
+prev_track() {
+  playerctl --player=$BLOCK_INSTANCE previous
+}
+play_pause_track() {
+  if [[ $(status_track) == "Paused" ]]; then
+    playerctl --player=$BLOCK_INSTANCE play
+    play_pause_text=$PAUSE_TEXT
+  elif [[ $(status_track) == "Playing" ]]; then
+    playerctl --player=$BLOCK_INSTANCE pause
+    play_pause_text=$PLAY_TEXT
+  fi
+}
+status_track() {
+  playerctl --player=$BLOCK_INSTANCE status
+}
+get_title_and_artist() {
+  title=$(playerctl --player=$BLOCK_INSTANCE metadata title)
+  artist=$(playerctl --player=$BLOCK_INSTANCE metadata artist)
+}
+case "$BLOCK_BUTTON" in
+  ${SHOW_PREV_NEXT_BUTTONS:0:1})
+    # as long as prev/next is selected (and the first time also)
+    while [[ "${selected+xxx}" != "xxx" ]] || [[ $selected =~ ($PREV_TRACK_TEXT|$NEXT_TRACK_TEXT|$PLAY_TEXT|$PAUSE_TEXT) ]]; do
+      IFS=
+      get_title_and_artist
+      [[ $(status_track) == "Playing" ]] && play_pause_text=$PAUSE_TEXT
+      [[ $(status_track) == "Paused" ]]  && play_pause_text=$PLAY_TEXT
+      lines="$PREV_TRACK_TEXT\n$NEXT_TRACK_TEXT\n$play_pause_text"
+      width=${#lines}
+      (( ${#PREV_TRACK_TEXT} > $width )) && width=${#PREV_TRACK_TEXT}
+      (( ${#NEXT_TRACK_TEXT} > $width )) && width=${#NEXT_TRACK_TEXT}
+      [[ "${current_row+xxx}" != "xxx" ]] && current_row=2
+      selected="$(echo -e $lines \
+        | rofi \
+            -dmenu \
+            -markup-rows \
+            -font $FONT \
+            -m -3 \
+            -lines 3 \
+            -width -$(( width + 2 )) \
+            -theme-str '#window {anchor: southwest; location: northwest; }' \
+            -theme $ROFI_CONFIG_FILE \
+            -selected-row $current_row \
+            -p "$artist$SEPARATOR$title")"
+      [[ $selected =~ $PREV_TRACK_TEXT ]] && { prev_track; get_title_and_artist; current_row=0; }
+      [[ $selected =~ $NEXT_TRACK_TEXT ]] && { next_track; get_title_and_artist; current_row=1; }
+      [[ $selected =~ ($PLAY_TEXT|$PAUSE_TEXT) ]] && { play_pause_track; current_row=2; }
+      sleep .1
+    done
+    ;;
+  ${SHOW_PREV_NEXT_BUTTONS:1:1})
+    next_track
+    ;;
+  ${SHOW_PREV_NEXT_BUTTONS:2:1})
+    prev_track
+    ;;
+esac
+
+echo "$LABEL"
+echo "$LABEL"
